@@ -1,11 +1,31 @@
-.PHONY: lint test
+.PHONY: tidy fmt vet lint test cover precommit-install hooks
+
+GO ?= go
+
+tidy:
+	@$(GO) mod tidy
+
+fmt:
+	@echo "gofmt -s -w ."
+	@gofmt -s -w .
+	@command -v goimports >/dev/null 2>&1 && goimports -w . || true
+
+vet:
+	@$(GO) vet ./...
 
 lint:
-	@echo "Rodando linters..."
-	@if command -v npm >/dev/null && [ -f package.json ]; then npm run lint; else echo "npm lint skip"; fi
-	@if [ -f .pre-commit-config.yaml ]; then pre-commit run --all-files; else echo "pre-commit skip"; fi
+	@command -v golangci-lint >/dev/null 2>&1 && golangci-lint run || (echo "golangci-lint não instalado, skip"; exit 0)
 
 test:
-	@echo "Rodando testes..."
-	@if command -v npm >/dev/null && [ -f package.json ]; then npm test; else echo "npm test skip"; fi
-	@if [ -f pytest.ini ] || [ -f pyproject.toml ]; then pytest -q; else echo "pytest skip"; fi
+	@$(GO) test ./... -race -count=1 -short -coverprofile=coverage.out
+
+cover:
+	@$(GO) tool cover -func=coverage.out | tail -n1
+
+precommit-install:
+	@pre-commit install --hook-type pre-commit --hook-type commit-msg || true
+
+hooks:
+	@git config commit.template .gitmessage
+	@git config core.hooksPath scripts/git-hooks
+	@echo "Hooks habilitados via core.hooksPath -> scripts/git-hooks"

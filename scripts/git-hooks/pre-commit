@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Verificações rápidas antes do commit
+set -euo pipefail
+
+echo "→ gofmt -s -l ."
+CHANGED=$(gofmt -s -l .)
+if [ -n "$CHANGED" ]; then
+  echo "$CHANGED"
+  echo "❌ Arquivos precisam de gofmt -s -w ."
+  exit 1
+fi
+
+echo "→ go vet ./..."
+go vet ./...
+
+if command -v golangci-lint >/dev/null 2>&1; then
+  echo "→ golangci-lint run"
+  golangci-lint run
+else
+  echo "→ golangci-lint não instalado (skip)"
+fi
+
+echo "→ go test ./... -short"
+go test ./... -short
