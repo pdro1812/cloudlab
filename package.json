@@ -1,5 +1,0 @@
-{
-  "devDependencies": {
-    "@commitlint/config-conventional": "^19.8.1"
-  }
-}
