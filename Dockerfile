@@ -1,29 +1,35 @@
-# Etapa 1: Build da aplicação Go
+# currency-converter/Dockerfile
+
+# --- Estágio 1: Build ---
+# Usamos uma imagem completa do Go para compilar a aplicação
 FROM golang:1.22-alpine AS builder
 
-# Instala dependências do sistema necessárias
-RUN apk add --no-cache git
-
-# Cria diretório de trabalho
+# Define o diretório de trabalho dentro do container
 WORKDIR /app
 
-# Copia os arquivos go.mod e go.sum primeiro (para aproveitar cache)
+# Copia os arquivos de gerenciamento de dependências primeiro
+# Isso aproveita o cache do Docker. As dependências só serão baixadas novamente se o go.mod/sum mudar.
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copia o restante do código
+# Copia todo o resto do código-fonte
 COPY . .
 
-# Compila a aplicação em modo release (binário estático)
-# O nome do output é 'myapp'
-RUN go build -o myapp ./cmd/app
+# Compila a aplicação. As flags são importantes:
+# - CGO_ENABLED=0: Cria um binário estaticamente linkado (não depende de libs do sistema)
+# - o /app/server: O nome e local do arquivo de saída (nosso executável)
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server ./cmd/api/main.go
 
-# Etapa 2: Imagem final mínima
+
+# --- Estágio 2: Final ---
+# Começamos com uma imagem Alpine zerada, que é super leve
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
 
-# Copia binário compilado do builder para /myapp
-COPY --from=builder /app/myapp /myapp
+# Copia APENAS o executável compilado do estágio de build para a imagem final
+COPY --from=builder /app/server /server
 
-# Define comando padrão para executar o arquivo que foi copiado
-CMD ["/myapp"]
+# Expõe a porta que a nossa aplicação usa (definida no .env como 8080)
+EXPOSE 8080
+
+# Define o comando que será executado quando o container iniciar.
+ENTRYPOINT [ "/server" ]

@@ -1,42 +1,42 @@
-# Versão do Docker Compose
+# currency-converter/docker-compose.yml
 version: '3.8'
 
-# Aqui definimos todos os containers (chamados de 'serviços')
 services:
-
-  # Serviço 1: O Banco de Dados PostgreSQL
-  db:
-    image: postgres:15-alpine
-    container_name: postgres_db
-    restart: always
-    environment:
-      # As variáveis são lidas do arquivo .env
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
-  # Serviço 2: A sua aplicação Go
-  app:
+  # Serviço da API Go
+  api:
+    container_name: currency_api
+    # Constrói a imagem a partir do Dockerfile na pasta atual (.)
     build: .
-    image: myapp:latest
-    container_name: go_app
-    restart: always
     ports:
-      - "8080:8080" # Mantenha se sua app for um servidor web
+      # Mapeia a porta 8080 do host para a 8080 do container
+      - "8080:8080"
+    # Carrega as variáveis de ambiente do arquivo .env
+    env_file:
+      - .env
+    # Garante que o container 'db' seja iniciado ANTES do container 'api'
     depends_on:
       - db
-    environment:
-      # Passa as mesmas variáveis para a sua aplicação Go
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - DB_NAME=${POSTGRES_DB}
 
-# Define os 'volumes' para persistência de dados
+  # Serviço do Banco de Dados PostgreSQL
+  db:
+    image: postgres:14-alpine
+    container_name: currency_db
+    restart: always
+    # As variáveis de ambiente para o banco continuam aqui
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    # NÃO precisamos mais expor a porta do banco para o host,
+    # pois a comunicação será interna entre os containers.
+    # Mas podemos manter para debug com ferramentas externas.
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      # Adicionando um volume nomeado para persistir os dados do banco
+      - postgres_data:/var/lib/postgresql/data
+
+# Define o volume nomeado para persistência dos dados
 volumes:
-  postgres-data:
+  postgres_data:
